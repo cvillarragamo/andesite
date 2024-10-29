@@ -1,0 +1,9 @@
+#Virtual env
+#Config VS Code
+.vscode/
+
+#Logs
+*.log
+
+#Bibliography
+Bibliografia.txt
