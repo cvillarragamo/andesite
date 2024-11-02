@@ -7,10 +7,10 @@ data=pd.read_csv(r'data\estandar.csv')
 data['date'] = pd.to_datetime(data['date'])
 outliers=pd.read_csv(r'data\outliers.csv')
 
-# Función de la página "Historia y Valores Normales"
-def pagina_historia_valores():
-    st.markdown("<h1 style='color: #4CAF50;'>Historia y Valores Normales</h1>", unsafe_allow_html=True)
-    st.write("En esta sección encontrarás los valores históricos de la operación y los valores normales.")
+# Función de la página "analisis de valores"
+def dashboard_valores_criticos():
+    st.markdown("<h1 style='color: #4CAF50;'>Dashbaord de análsis de valores de performancia</h1>", unsafe_allow_html=True)
+    st.write("En esta sección se encontrarian los valores históricos de la operación y los valores que se consideran como de referencia de performancia.")
     
     # Cálculo del heatmap
     trips_per_day = data.groupby(['truck', 'date']).size().reset_index(name='trips')
@@ -39,73 +39,74 @@ def pagina_historia_valores():
         yaxis={'dtick': 1},
         height=height
     )
+    st.plotly_chart(heatmap_fig)
+    st.markdown(
+        """
+        **Descripción:** En el heatmap se observa que existen 9 camiones con un mayor  número de viajes diarios en comparación con el resto de la flota. Es importante evaluar si estos valores podrían establecerse como referencia objetivo para los demás vehículos:
 
-    #### Agrupar por pala y por dia ###
-    grouped_data = data.groupby(['day_of_week', 'loader']).size().reset_index(name='total_trips')
+- `CAEX25`
+- `CAEX31`
+- `CAEX41`
+- `CAEX44`
+- `CAEX55`
+- `CAEX66`
+- `CAEX81`
+- `CAEX93`
+- `CAEX98`
 
-    # Ordenar los días de la semana
-    days_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    grouped_data['day_of_week'] = pd.Categorical(grouped_data['day_of_week'], categories=days_order, ordered=True)
+Cabe resaltar que los valores de inactividad tienen valores atípicos que superan las 24 horas de trabajo (_valores menores a 0_), lo cual indica posibles inconsistencias en los registros, que podrían corresponder a errores en la captura o reportes irregulares. 
 
-    # Crear el gráfico de barras apiladas
-    loader_bar_fig = px.bar(
-        grouped_data,
-        x='day_of_week',
-        y='total_trips',
-        color='loader',
-        title='Total de Viajes por Día de la Semana y Tipo de Pala',
-        labels={'total_trips': 'Total de Viajes', 'day_of_week': 'Día de la Semana'},
-        text='total_trips'
+Al analizar los camiones que presentan estas anomalías, se observa que coinciden con los 9 camiones identificados anteriormente como los que realizan la mayor cantidad de viajes por día. Por lo tanto, es crucial monitorear esta parte de la flota para garantizar la precisión y la fiabilidad de los registros operativos.   """
     )
 
-    # Configurar el diseño
-    loader_bar_fig.update_layout(barmode='stack', xaxis_title='Día de la Semana', yaxis_title='Total de Viajes')
+    #### Agrupar por pala y por dia ###
+    
+    trucks_n=data.groupby(['truck','date']).sum(numeric_only=True).reset_index()
+    trips_per_day = data.groupby(['truck', 'date']).size().reset_index(name='trips')
 
+    trucks=pd.merge(trucks_n,trips_per_day, on = ['truck', 'date'], how='left')
+    mean_ton = trucks['ton'].mean()
+    std_ton = trucks['ton'].std()
+    percentile_25 = trucks['ton'].quantile(0.25)
+    percentile_75 = trucks['ton'].quantile(0.75)
+
+# Crear los intervalos y etiquetas para clasificación
+    st.markdown("### Frecuencia de Camiones por Nivel de Rendimiento")
+    bins = [0, mean_ton - std_ton, percentile_25, mean_ton, percentile_75, float('inf')]
+    labels = ['Outlier Bajo', 'Aceptable', 'Promedio', 'Óptimo', 'Outlier Alto']
+
+    trucks['rendimiento'] = pd.cut(trucks['ton'], bins=bins, labels=labels, right=False)
+    
+    bars = px.histogram(trucks, x='truck', color='rendimiento',
+                   title="Frecuencia de Camiones por Nivel de Rendimiento",
+                   labels={'truck': 'Camión', 'rendimiento': 'Rendimiento'},
+                   category_orders={'rendimiento': ['Outlier Bajo', 'Aceptable', 'Promedio', 'Óptimo', 'Outlier Alto']})
+
+
+    bars.update_layout(barmode='stack', xaxis_title="Camión", yaxis_title="Frecuencia")
+    st.plotly_chart(bars)
+
+    st.markdown(""" 
+              -  Algunos camiones, como `CAEX21`, `CAEX22`, y `CAEX30`, tienen una alta proporción de observaciones en las categorías Óptimo y Outlier Alto, lo cual indica que estos camiones suelen operar a un nivel de rendimiento superior al promedio.
+En contraste, otros camiones como `CAEX01` y `CAEX07` tienen más registros en las categorías de Outlier Bajo y Aceptable, lo que podría sugerir problemas de rendimiento o que están operando en condiciones subóptimas.
+
+- Camiones como `CAEX58`, `CAEX60`, y `CAEX90` muestran una distribución alta en las categorías Promedio y Óptimo, con menos registros en las categorías de outliers. Esto podría indicar que estos camiones tienen un rendimiento más estable y predecible.
+                """)
     ##################
 
-    # Dividir en dos columnas
-    col1, col2 = st.columns([2, 1])  # La primera columna es más grande (2:1)
-
-    # Primera columna: Gráfico del heatmap
-    with col1:
-        st.plotly_chart(heatmap_fig)
-
-    # Segunda columna: Texto adicional o tablas
-    with col2:
-        st.subheader("Descripción")
-        st.markdown(
-            """
-            Los valores normales representan el rango esperado durante la operación habitual. 
-            Este gráfico te muestra las tendencias diarias de los camiones, con los viajes realizados por día.
-            """
-        )
-        st.markdown(
-            """
-            Puedes observar si algún camión está realizando más o menos viajes de lo esperado en un día 
-            específico, lo que podría ser útil para el análisis de desempeño.
-            """
-        )
-
-        st.plotly_chart(loader_bar_fig)  
-
-
-
-def pagina_valores_criticos():
-    st.markdown("<h1>Valores Críticos (Outliers)</h1>", unsafe_allow_html=True)
-    st.write("Aquí se muestran los valores fuera del rango esperado (outliers).")
+def Outliers():
+    st.markdown("<h1>Outliers</h1>", unsafe_allow_html=True)
+    st.write("Aquí se muestran los valores fuera del rango esperado (outliers) y sus patrones")
     
     # Usamos columnas para presentar mejor los datos
     st.warning("¡Atención! Se han detectado los siguientes valores fuera de rango:")
-    critical_values = pd.DataFrame({
-        'Fecha': ['2023-10-10', '2023-10-11', '2023-10-12'],
-        'Valor': [120, 150, 180]
-    })
-    st.dataframe(critical_values)
+    st.dataframe(outliers)
+    
 
-def pagina_monitoreo_kpis():
+def Dahsboard_Monitoreo():
     st.markdown("<h1>Monitoreo de Operación y KPIs</h1>", unsafe_allow_html=True)
     st.write("Esta sección te permite hacer un monitoreo en tiempo real de los indicadores clave de operación (KPIs).")
-
+    st.warning("¡Atención! ESTA SECCION NO ESTA IMPLEMENTADA. LOS DATO SON FICTICIOS")
     # Usamos columnas para distribuir los KPIs
     col1, col2, col3 = st.columns(3)
 
@@ -131,17 +132,17 @@ def main():
     st.sidebar.title("Navegación")
     pagina_seleccionada = st.sidebar.radio(
         "Selecciona una página:",
-        ("Historia y Valores Normales", "Valores Críticos", "Monitoreo y KPIs")
+        ("Dashboard de Análisis de Factores Críticos", "Outliers", "Dashboard de Monitoreo de Rendimiento Diario")
     )
 
     # Contenedor principal para aplicar estilo
     with st.container():
-        if pagina_seleccionada == "Historia y Valores Normales":
-            pagina_historia_valores()
-        elif pagina_seleccionada == "Valores Críticos":
-            pagina_valores_criticos()
-        elif pagina_seleccionada == "Monitoreo y KPIs":
-            pagina_monitoreo_kpis()
+        if pagina_seleccionada == "Dashboard de Análisis de Factores Críticos":
+            dashboard_valores_criticos()
+        elif pagina_seleccionada == "Outliers":
+            Outliers()
+        elif pagina_seleccionada == "Dashboard de Monitoreo de Rendimiento Diario":
+            Dahsboard_Monitoreo()
 
 if __name__ == "__main__":
     main()
