@@ -22,6 +22,11 @@ Este proyecto analiza el rendimiento diario de diferentes equipos de transporte 
 
 Para ejecutar el dashboard principal, corra el script `dashboard.py` utilizando Python. Asegúrese de tener instaladas todas las dependencias necesarias, las cuales pueden ser encontradas en el archivo `requirements.txt`.
 
+Para correr el dashboar localmente ejecutar
+    ```bash
+    streamlit run dashboard.py
+    ```
+
 ## Contribuciones
 
 Las contribuciones a este proyecto son bienvenidas. Por favor, revise las issues abiertas o cree una nueva para discutir cambios o mejoras propuestas.
