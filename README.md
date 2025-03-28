@@ -31,7 +31,7 @@ Para correr el dashboar localmente ejecutar
 
 Las contribuciones a este proyecto son bienvenidas. Por favor, revise las issues abiertas o cree una nueva para discutir cambios o mejoras propuestas.
 
-## Licencia
+
 
 Este proyecto está licenciado bajo [Incluir tipo de licencia aquí], vea el archivo `LICENSE` para más detalles.
 
